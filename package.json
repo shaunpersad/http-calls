@@ -1,0 +1,24 @@
+{
+  "name": "http-calls",
+  "version": "0.0.1",
+  "description": "A utility for describing and executing http service calls",
+  "main": "index.js",
+  "directories": {
+    "lib": "lib",
+    "test": "test"
+  },
+  "scripts": {
+    "test": "mocha"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/shaunpersad/http-calls.git"
+  },
+  "keywords": ["http", "ajax", "service"],
+  "author": "",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/shaunpersad/http-calls/issues"
+  },
+  "homepage": "https://github.com/shaunpersad/http-calls#readme"
+}

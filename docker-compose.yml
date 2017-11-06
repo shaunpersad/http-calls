@@ -1,0 +1,10 @@
+version: '2.1'
+services:
+
+  http-calls:
+    build: .
+    image: shaunpersad/http-calls
+    command: npm test
+    volumes:
+      - .:/usr/src/app
+      - /usr/src/app/node_modules
