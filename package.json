@@ -14,11 +14,18 @@
     "type": "git",
     "url": "git+https://github.com/shaunpersad/http-calls.git"
   },
-  "keywords": ["http", "ajax", "service"],
+  "keywords": [
+    "http",
+    "ajax",
+    "service"
+  ],
   "author": "",
   "license": "MIT",
   "bugs": {
     "url": "https://github.com/shaunpersad/http-calls/issues"
   },
-  "homepage": "https://github.com/shaunpersad/http-calls#readme"
+  "homepage": "https://github.com/shaunpersad/http-calls#readme",
+  "dependencies": {
+    "express-laravel-router": "^1.2.3"
+  }
 }
