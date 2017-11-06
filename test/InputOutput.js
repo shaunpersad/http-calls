@@ -1,10 +1,6 @@
 "use strict";
 const InputOutput = require('../lib/InputOutput');
-
-function arraysAreEqual(arr1, arr2, join = ',') {
-
-    return [].concat(arr1).sort().join(join) === [].concat(arr2).sort().join(join);
-}
+const arraysAreEqual = require('./arraysAreEqual');
 
 describe('InputOutput', function() {
 
