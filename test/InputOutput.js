@@ -145,9 +145,7 @@ describe('InputOutput', function() {
                             throw new Error();
                         }
                     });
-
                 });
-
             });
 
             describe('inputOutput.success(schema)', function() {
@@ -264,6 +262,110 @@ describe('InputOutput', function() {
 
                 });
             });
+
+            describe('inputOutput.error(schema)', function() {
+
+                it('should create a new instance with the proper response set, with a default status of 500 and content type of json', function() {
+
+                    const inputOutput = new InputOutput();
+                    const schema = {
+                        type: 'object',
+                        properties: {
+                            error: {
+                                type: 'string'
+                            }
+                        },
+                        required: ['error']
+                    };
+
+                    const clone = inputOutput.error(schema);
+
+                    if (clone === inputOutput) {
+                        throw new Error();
+                    }
+                    if (
+                        clone.responses[0][500].schema !== schema ||
+                        clone.responses[0][500].contentType !== 'application/json' ||
+                        clone.responses[0][500].isSuccessResponse !== false
+                    ) {
+                        throw new Error();
+                    }
+                    if (inputOutput.responses[0]) {
+                        throw new Error();
+                    }
+                });
+            });
+
+            describe('inputOutput.error(schema, status)', function() {
+
+                it('should create a new instance with the proper response set, with a default content type of json', function() {
+
+                    const inputOutput = new InputOutput();
+                    const schema = {
+                        type: 'object',
+                        properties: {
+                            error: {
+                                type: 'string'
+                            }
+                        },
+                        required: ['error']
+                    };
+                    const status = 400;
+
+                    const clone = inputOutput.error(schema, status);
+
+                    if (clone === inputOutput) {
+                        throw new Error();
+                    }
+                    if (
+                        clone.responses[0][status].schema !== schema ||
+                        clone.responses[0][status].contentType !== 'application/json' ||
+                        clone.responses[0][status].isSuccessResponse !== false
+                    ) {
+                        throw new Error();
+                    }
+                    if (inputOutput.responses[0]) {
+                        throw new Error();
+                    }
+                });
+            });
+
+            describe('inputOutput.error(schema, status, contentType)', function() {
+
+                it('should create a new instance with the proper response set', function() {
+
+                    const inputOutput = new InputOutput();
+                    const schema = {
+                        type: 'object',
+                        properties: {
+                            error: {
+                                type: 'string'
+                            }
+                        },
+                        required: ['error']
+                    };
+                    const status = 404;
+                    const contentType = 'text/html';
+
+                    const clone = inputOutput.error(schema, status, contentType);
+
+                    if (clone === inputOutput) {
+                        throw new Error();
+                    }
+                    if (
+                        clone.responses[0][status].schema !== schema ||
+                        clone.responses[0][status].contentType !== contentType ||
+                        clone.responses[0][status].isSuccessResponse !== false
+                    ) {
+                        throw new Error();
+                    }
+                    if (inputOutput.responses[0]) {
+                        throw new Error();
+                    }
+
+                });
+            });
+
         });
     });
 
