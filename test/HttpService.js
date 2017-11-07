@@ -215,12 +215,79 @@ describe('HttpService', function() {
             });
         });
 
+        describe('service.serviceCalls', function() {
+
+            it('should house any registered service calls, based on the installed HttpService.setServiceCall function', function() {
+
+                const service = new HttpService('test-service', 'http://localhost');
+                service.group({
+                    namespace: 'api.'
+                }, (service) => {
+
+                    service.createServiceCall('users', '/users').register();
+                    const serviceCall = service.serviceCalls['api.users'];
+                    if (!(serviceCall instanceof HttpServiceCall)) {
+                        throw new Error();
+                    }
+                    if (serviceCall.serviceCallName !== 'api.users') {
+                        throw new Error();
+                    }
+                    if (serviceCall.endpointUrl !== 'http://localhost/users') {
+                        throw new Error();
+                    }
+                });
+
+                const serviceCall = service.serviceCalls['api.users'];
+                if (!(serviceCall instanceof HttpServiceCall)) {
+                    throw new Error();
+                }
+                if (serviceCall.serviceCallName !== 'api.users') {
+                    throw new Error();
+                }
+                if (serviceCall.endpointUrl !== 'http://localhost/users') {
+                    throw new Error();
+                }
+
+                const HttpServiceMod = class extends HttpService {
+                    static setServiceCall(serviceCalls, serviceCallName, serviceCall) {
+                        serviceCalls.api = {
+                            users: serviceCall
+                        }
+                    }
+                };
+
+                const serviceMod = new HttpServiceMod('test-service', 'http://localhost');
+                serviceMod.group({
+                    namespace: 'api.'
+                }, (service) => {
+
+                    service.createServiceCall('users', '/users').register();
+                });
+
+                const serviceModCall = serviceMod.serviceCalls.api.users;
+
+                if (!(serviceModCall instanceof HttpServiceCall)) {
+                    throw new Error();
+                }
+                if (serviceModCall.serviceCallName !== 'api.users') {
+                    throw new Error();
+                }
+                if (serviceModCall.endpointUrl !== 'http://localhost/users') {
+                    throw new Error();
+                }
+            });
+        });
+
         describe('serviceCall = service.createServiceCall(name)', function() {
 
             it('should create a new instance of HttpServiceCall, with the proper name set, and a default uri of / and a default method of GET', function() {
 
                 const service = new HttpService('test-service', 'http://localhost/api/');
                 const serviceCall1 = service.createServiceCall('service-call-1');
+
+                if (!(serviceCall1 instanceof HttpServiceCall)) {
+                    throw new Error();
+                }
 
                 if (serviceCall1.serviceCallName !== 'service-call-1') {
                     throw new Error();
@@ -337,6 +404,7 @@ describe('HttpService', function() {
                         if (!clicked) {
                             throw new Error();
                         }
+
                     });
                 });
             });
@@ -383,17 +451,85 @@ describe('HttpService', function() {
 
     describe('service = new HttpService(name, baseUrl, events)', function() {
 
+        it('should create a new service with the proper event handlers', function() {
 
+            let numClicks = 0;
+            const incClicks = () => numClicks++;
+            const events = {
+                onRequestStart: incClicks,
+                onRequestEnd: incClicks,
+                onRequestError: incClicks,
+                onResponseError: incClicks,
+                onError: incClicks,
+                onCallDefinition: incClicks
+            };
+            const service = new HttpService('test-service', 'http://localhost', events);
+
+            service.events.onRequestStart();
+            service.events.onRequestEnd();
+            service.events.onRequestError();
+            service.events.onResponseError();
+            service.events.onError();
+            service.events.onCallDefinition();
+
+            service.group({ namespace: 'hi' }, (service) => {
+
+                service.events.onRequestStart();
+                service.events.onRequestEnd();
+                service.events.onRequestError();
+                service.events.onResponseError();
+                service.events.onError();
+                service.events.onCallDefinition();
+
+                if (numClicks !== 12) {
+                    throw new Error();
+                }
+            });
+        });
     });
 
 
     describe('HttpService.makeRequest(input, serviceCall, callback)', function() {
 
+        it('should throw an error if not implemented', function() {
+
+            const input = {
+                url: 'http://localhost',
+                method: 'get',
+                headers: {},
+                query: {},
+                params: {},
+                body: {}
+            };
+            const HttpServiceMod = class extends HttpService {};
+            const service = new HttpServiceMod('test', 'http://localhost');
+            const serviceCall = service.createServiceCall('call');
+            let error = false;
+            try {
+                HttpServiceMod.makeRequest(input, serviceCall, err => {});
+            } catch (e) {
+                error = true;
+            }
+            if (!error) {
+                throw new Error();
+            }
+        });
 
     });
 
     describe('HttpService.setServiceCall(serviceCalls, serviceCallName, serviceCall)', function() {
 
+        it('should assign the serviceCall to the serviceCalls object using the serviceCallName', function() {
 
+            const serviceCalls = {};
+            const service = new HttpService('test-service', 'http://localhost');
+            const serviceCall = service.createServiceCall('test-service-call');
+
+            HttpService.setServiceCall(serviceCalls, serviceCall.serviceCallName, serviceCall);
+
+            if (serviceCalls[serviceCall.serviceCallName] !== serviceCall) {
+                throw new Error();
+            }
+        });
     });
 });
