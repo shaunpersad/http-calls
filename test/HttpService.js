@@ -7,13 +7,13 @@ const arraysAreEqual = require('./arraysAreEqual');
 
 describe('HttpService', function() {
 
-    describe('service = new HttpService(name, baseUrl)', function() {
+    describe('service = new HttpService(baseUrl)', function() {
 
         describe('service.clone()', function() {
 
             it('should create a new instance that inherits all properties from the instance that created it', function() {
 
-                const service = new HttpService('test-service', 'http://localhost');
+                const service = new HttpService('http://localhost');
                 const properties = [
                     'headersInputs',
                     'queryInputs',
@@ -59,7 +59,7 @@ describe('HttpService', function() {
 
             it('should create a new instance by applying the options provided to the existing service, and return it in the closure', function() {
 
-                const service = new HttpService('test-service', 'http://localhost');
+                const service = new HttpService('http://localhost');
 
                 const options = {
                     namespace: 'api.',
@@ -221,7 +221,7 @@ describe('HttpService', function() {
 
             it('should house any registered service calls, based on the installed HttpService.setServiceCall function', function() {
 
-                const service = new HttpService('test-service', 'http://localhost');
+                const service = new HttpService('http://localhost');
                 service.group({
                     namespace: 'api.'
                 }, (service) => {
@@ -258,7 +258,7 @@ describe('HttpService', function() {
                     }
                 };
 
-                const serviceMod = new HttpServiceMod('test-service', 'http://localhost');
+                const serviceMod = new HttpServiceMod('http://localhost');
                 serviceMod.group({
                     namespace: 'api.'
                 }, (service) => {
@@ -284,7 +284,7 @@ describe('HttpService', function() {
 
             it('should create a new instance of HttpServiceCall, with the proper name set, and a default uri of / and a default method of GET', function() {
 
-                const service = new HttpService('test-service', 'http://localhost/api/');
+                const service = new HttpService('http://localhost/api/');
                 const serviceCall1 = service.createServiceCall('service-call-1');
 
                 if (!(serviceCall1 instanceof HttpServiceCall)) {
@@ -305,7 +305,7 @@ describe('HttpService', function() {
 
             it('should inherit properties from the service that created it', function() {
 
-                const service = new HttpService('test-service', 'http://localhost');
+                const service = new HttpService('http://localhost');
 
                 const options = {
                     namespace: 'api.',
@@ -417,7 +417,7 @@ describe('HttpService', function() {
 
                     it('should create a new instance that inherits all properties from the instance that created it', function() {
 
-                        const service = new HttpService('test-service', 'http://localhost');
+                        const service = new HttpService('http://localhost');
 
                         service.group({
                             headers: {
@@ -451,13 +451,51 @@ describe('HttpService', function() {
                     });
                 });
 
+                describe('serviceCall.events({})', function() {
+
+                    it('should override the service events', function() {
+
+                        let count = 0;
+
+                        const HttpServiceMod = class extends HttpService {
+                            static makeRequest(input, serviceCall, callback) {
+
+                                callback();
+                            }
+                        };
+                        const service = new HttpServiceMod('http://localhost', {
+                            onRequestStart: () => {
+                                throw new Error();
+                            },
+                            onRequestEnd: () => {
+                                throw new Error();
+                            },
+                        });
+                        const serviceCall = service.createServiceCall('testService', '/users').events({
+                            onRequestStart: () => {
+                                count++;
+                            },
+                            onRequestEnd: () => {
+                                count++;
+                            }
+                        });
+                        serviceCall.execute({}, (err) => {
+
+                            if (count !== 2) {
+                                throw new Error();
+                            }
+                        });
+                    });
+
+                });
+
                 describe('serviceCall.register()', function() {
 
                     it('should register itself in the serviceCalls of the service, and fire the onCallRegistration event', function() {
 
                         let _serviceCall;
 
-                        const service = new HttpService('test', 'http://localhost', {
+                        const service = new HttpService('http://localhost', {
                             onCallRegistration: (serviceCall) => {
 
                                 _serviceCall = serviceCall;
@@ -505,7 +543,7 @@ describe('HttpService', function() {
                             }
                         };
 
-                        const service = new Service('test', 'http://localhost', {
+                        const service = new Service('http://localhost', {
                             onCallRegistration: function(serviceCall) {
                                 _serviceCall = serviceCall;
                                 count++;
@@ -624,7 +662,7 @@ describe('HttpService', function() {
                             }
                         };
 
-                        const service = new Service('test', 'http://localhost', {
+                        const service = new Service('http://localhost', {
                             onCallRegistration: function(serviceCall) {
                                 _serviceCall = serviceCall;
                                 count++;
@@ -745,7 +783,7 @@ describe('HttpService', function() {
                             }
                         };
 
-                        const service = new Service('test', 'http://localhost', {
+                        const service = new Service('http://localhost', {
                             onCallRegistration: function(serviceCall) {
                                 _serviceCall = serviceCall;
                                 count++;
@@ -829,7 +867,7 @@ describe('HttpService', function() {
                             }
                         };
 
-                        const service = new Service('test', 'http://localhost', {
+                        const service = new Service('http://localhost', {
                             onCallRegistration: function(serviceCall) {
                                 _serviceCall = serviceCall;
                                 count++;
@@ -974,7 +1012,7 @@ describe('HttpService', function() {
                             }
                         };
 
-                        const service = new Service('test', 'http://localhost', {
+                        const service = new Service('http://localhost', {
                             onCallRegistration: function(serviceCall) {
                                 _serviceCall = serviceCall;
                                 count++;
@@ -1060,7 +1098,7 @@ describe('HttpService', function() {
                             }
                         };
 
-                        const service = new Service('test', 'http://localhost', {
+                        const service = new Service('http://localhost', {
                             onCallRegistration: function(serviceCall) {
                                 _serviceCall = serviceCall;
                                 count++;
@@ -1178,7 +1216,7 @@ describe('HttpService', function() {
                             }
                         };
 
-                        const service = new Service('test', 'http://localhost', {
+                        const service = new Service('http://localhost', {
                             onCallRegistration: function(serviceCall) {
                                 _serviceCall = serviceCall;
                                 count++;
@@ -1272,7 +1310,7 @@ describe('HttpService', function() {
                             }
                         };
 
-                        const service = new Service('test', 'http://localhost', {
+                        const service = new Service('http://localhost', {
                             onCallRegistration: function(serviceCall) {
                                 _serviceCall = serviceCall;
                                 count++;
@@ -1367,7 +1405,7 @@ describe('HttpService', function() {
                             }
                         };
 
-                        const service = new Service('test', 'http://localhost', {
+                        const service = new Service('http://localhost', {
                             onCallRegistration: function(serviceCall) {
                                 _serviceCall = serviceCall;
                                 count++;
@@ -1458,7 +1496,7 @@ describe('HttpService', function() {
                             }
                         };
 
-                        const service = new Service('test', 'http://localhost', {
+                        const service = new Service('http://localhost', {
                             onCallRegistration: function(serviceCall) {
                                 _serviceCall = serviceCall;
                                 count++;
@@ -1557,7 +1595,7 @@ describe('HttpService', function() {
                             }
                         };
 
-                        const service = new Service('test', 'http://localhost', {
+                        const service = new Service('http://localhost', {
                             onCallRegistration: function(serviceCall) {
                                 _serviceCall = serviceCall;
                                 count++;
@@ -1633,7 +1671,7 @@ describe('HttpService', function() {
 
             it('should create a new instance of HttpServiceCall, with the proper name and uri set, and a default method of GET', function() {
 
-                const service = new HttpService('test-service', 'http://localhost/api/');
+                const service = new HttpService('http://localhost/api/');
                 const serviceCall1 = service.createServiceCall('service-call-1', '/users');
 
                 if (serviceCall1.serviceCallName !== 'service-call-1') {
@@ -1652,7 +1690,7 @@ describe('HttpService', function() {
 
             it('should create a new instance of HttpServiceCall, with the proper name, uri, and method set', function() {
 
-                const service = new HttpService('test-service', 'http://localhost/api/');
+                const service = new HttpService('http://localhost/api/');
                 const serviceCall1 = service.createServiceCall('service-call-1', 'users', 'post');
 
                 if (serviceCall1.serviceCallName !== 'service-call-1') {
@@ -1668,7 +1706,7 @@ describe('HttpService', function() {
         });
     });
 
-    describe('service = new HttpService(name, baseUrl, events)', function() {
+    describe('service = new HttpService(baseUrl, events)', function() {
 
         it('should create a new service with the proper event handlers', function() {
 
@@ -1682,7 +1720,7 @@ describe('HttpService', function() {
                 onError: incClicks,
                 onCallRegistration: incClicks
             };
-            const service = new HttpService('test-service', 'http://localhost', events);
+            const service = new HttpService('http://localhost', events);
 
             service.events.onRequestStart();
             service.events.onRequestEnd();
@@ -1721,7 +1759,7 @@ describe('HttpService', function() {
                 body: {}
             };
             const HttpServiceMod = class extends HttpService {};
-            const service = new HttpServiceMod('test', 'http://localhost');
+            const service = new HttpServiceMod('http://localhost');
             const serviceCall = service.createServiceCall('call');
             let error = false;
             try {
@@ -1741,7 +1779,7 @@ describe('HttpService', function() {
         it('should assign the serviceCall to the serviceCalls object using the serviceCallName', function() {
 
             const serviceCalls = {};
-            const service = new HttpService('test-service', 'http://localhost');
+            const service = new HttpService('http://localhost');
             const serviceCall = service.createServiceCall('test-service-call');
 
             HttpService.setServiceCall(serviceCalls, serviceCall.serviceCallName, serviceCall);
