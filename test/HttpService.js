@@ -1,6 +1,7 @@
 "use strict";
 const HttpService = require('../lib/HttpService');
 const HttpServiceCall = require('../lib/HttpServiceCall');
+const RequestError = require('../lib/RequestError');
 const ResponseError = require('../lib/ResponseError');
 const arraysAreEqual = require('./arraysAreEqual');
 
@@ -636,6 +637,20 @@ describe('HttpService', function() {
                                 count++;
                             },
                             onRequestEnd: function(err, payload, status, headers) {
+
+                                if (err) {
+                                    throw new Error();
+                                }
+                                if (payload.foo !== 'bar') {
+                                    throw new Error();
+                                }
+                                if (status !== 200) {
+                                    throw new Error();
+                                }
+                                if (!arraysAreEqual(Object.keys(headers), ['baz'])) {
+                                    throw new Error();
+                                }
+
                                 if (this !== _serviceCall) {
                                     throw new Error();
                                 }
@@ -680,12 +695,12 @@ describe('HttpService', function() {
                             body: {
                                 firstName: 'Shaun'
                             }
-                        }, (err, response, status, headers, serviceCall) => {
+                        }, (err, payload, status, headers, serviceCall) => {
 
                             if (err) {
                                 throw new Error();
                             }
-                            if (response.foo !== 'bar') {
+                            if (payload.foo !== 'bar') {
                                 throw new Error();
                             }
                             if (status !== 200) {
@@ -746,6 +761,19 @@ describe('HttpService', function() {
                                 if (this !== _serviceCall) {
                                     throw new Error();
                                 }
+                                if (err) {
+                                    throw new Error();
+                                }
+                                if (payload.foo !== 'bar') {
+                                    throw new Error();
+                                }
+                                if (status !== 200) {
+                                    throw new Error();
+                                }
+                                if (!arraysAreEqual(Object.keys(headers), ['baz'])) {
+                                    throw new Error();
+                                }
+
                                 count++;
                             }
                         });
@@ -767,12 +795,12 @@ describe('HttpService', function() {
                             body: {
                                 firstName: 'Shaun'
                             }
-                        }, (err, response, status, headers, serviceCall) => {
+                        }, (err, payload, status, headers, serviceCall) => {
 
                             if (err) {
                                 throw new Error();
                             }
-                            if (response.foo !== 'bar') {
+                            if (payload.foo !== 'bar') {
                                 throw new Error();
                             }
                             if (status !== 200) {
@@ -788,7 +816,7 @@ describe('HttpService', function() {
 
                     });
 
-                    it('should fire the onInvalidResponse and onRequestEnd and pass an instance of ResponseError to the callback if a successful call does not match the expected format', function() {
+                    it('should fire onInvalidResponse, onError, and onRequestEnd and pass an instance of ResponseError to the callback if a successful call does not match the expected format', function() {
 
                         let _serviceCall;
                         let _input;
@@ -836,8 +864,46 @@ describe('HttpService', function() {
 
                                 count++;
                             },
+                            onError: function(err) {
+
+                                if (!(err instanceof ResponseError)) {
+                                    throw new Error();
+                                }
+                                if (err.input !== _input) {
+                                    throw new Error();
+                                }
+                                if (err.payload.message !== 'error') {
+                                    throw new Error();
+                                }
+                                if (err.status !== 200) {
+                                    throw new Error();
+                                }
+                                if (err.headers.baz !== 'qux') {
+                                    throw new Error();
+                                }
+                                if (!err.validationErrors) {
+                                    throw new Error();
+                                }
+
+                                count++;
+                            },
                             onRequestEnd: function(err, payload, status, headers) {
                                 if (this !== _serviceCall) {
+                                    throw new Error();
+                                }
+                                if (!err) {
+                                    throw new Error();
+                                }
+                                if (!(err instanceof ResponseError)) {
+                                    throw new Error();
+                                }
+                                if (payload.message !== 'error') {
+                                    throw new Error();
+                                }
+                                if (status !== 200) {
+                                    throw new Error();
+                                }
+                                if (headers.baz !== 'qux') {
                                     throw new Error();
                                 }
                                 count++;
@@ -888,7 +954,7 @@ describe('HttpService', function() {
                                 throw new Error();
                             }
 
-                            if (count !== 4) {
+                            if (count !== 5) {
                                 throw new Error();
                             }
                         });
@@ -924,6 +990,20 @@ describe('HttpService', function() {
                                 if (this !== _serviceCall) {
                                     throw new Error();
                                 }
+                                if (err) {
+                                    throw new Error();
+                                }
+                                if (payload.message !== 'error') {
+                                    throw new Error();
+                                }
+                                if (status !== 404) {
+                                    throw new Error();
+                                }
+                                if (headers.baz !== 'qux') {
+                                    throw new Error();
+                                }
+
+
                                 count++;
                             }
                         });
@@ -1020,6 +1100,19 @@ describe('HttpService', function() {
                                 if (this !== _serviceCall) {
                                     throw new Error();
                                 }
+                                if (err) {
+                                    throw new Error();
+                                }
+                                if (payload.foo !== 'error') {
+                                    throw new Error();
+                                }
+                                if (status !== 404) {
+                                    throw new Error();
+                                }
+                                if (headers.baz !== 'qux') {
+                                    throw new Error();
+                                }
+
                                 count++;
                             }
                         });
@@ -1072,14 +1165,465 @@ describe('HttpService', function() {
 
                     });
 
-                    it('invalid headers inputs');
+                    it('invalid headers inputs', function() {
 
-                    it('invalid query inputs');
+                        let _serviceCall;
+                        let _input;
+                        let count = 0;
 
-                    it('invalid path inputs');
+                        const Service = class extends HttpService {
+                            static makeRequest(input, serviceCall, callback) {
 
-                    it('invalid body inputs');
+                                callback(null, { message: 'error' }, 200, { baz: 'qux' });
+                            }
+                        };
 
+                        const service = new Service('test', 'http://localhost', {
+                            onCallRegistration: function(serviceCall) {
+                                _serviceCall = serviceCall;
+                                count++;
+                            },
+                            onRequestStart: function(input) {
+                                _input = input;
+                                if (this !== _serviceCall) {
+                                    throw new Error();
+                                }
+                                count++;
+                            },
+                            onInvalidRequest: function(requestError) {
+
+                                if (!(requestError instanceof RequestError)) {
+                                    throw new Error();
+                                }
+                                if (requestError.input !== _input) {
+                                    throw new Error();
+                                }
+                                if (!requestError.validationErrors) {
+                                    throw new Error();
+                                }
+
+                                count++;
+                            },
+                            onError: function(err) {
+
+                                if (!(err instanceof RequestError)) {
+                                    throw new Error();
+                                }
+                                if (err.input !== _input) {
+                                    throw new Error();
+                                }
+                                if (!err.validationErrors) {
+                                    throw new Error();
+                                }
+
+                                count++;
+                            },
+                            onRequestEnd: function(err, payload, status, headers) {
+                                if (this !== _serviceCall) {
+                                    throw new Error();
+                                }
+                                if (!err) {
+                                    throw new Error();
+                                }
+                                if (!(err instanceof RequestError)) {
+                                    throw new Error();
+                                }
+                                count++;
+                            }
+                        });
+
+                        service
+                            .createServiceCall('testService', '/users/{userId}/edit', 'put')
+                            .headersSchema({
+                                Authorization: {
+                                    type: 'string'
+                                }
+                            })
+                            .register();
+
+                        service.serviceCalls.testService.execute({
+                            path: {
+                                userId: 'one'
+                            }
+                        }, (err, payload, status, headers, serviceCall) => {
+
+                            if (!err) {
+                                throw new Error();
+                            }
+                            if (!(err instanceof RequestError)) {
+                                throw new Error();
+                            }
+                            if (count !== 5) {
+                                throw new Error();
+                            }
+                        });
+                    });
+
+                    it('invalid query inputs', function() {
+
+                        let _serviceCall;
+                        let _input;
+                        let count = 0;
+
+                        const Service = class extends HttpService {
+                            static makeRequest(input, serviceCall, callback) {
+
+                                callback(null, { message: 'error' }, 200, { baz: 'qux' });
+                            }
+                        };
+
+                        const service = new Service('test', 'http://localhost', {
+                            onCallRegistration: function(serviceCall) {
+                                _serviceCall = serviceCall;
+                                count++;
+                            },
+                            onRequestStart: function(input) {
+                                _input = input;
+                                if (this !== _serviceCall) {
+                                    throw new Error();
+                                }
+                                count++;
+                            },
+                            onInvalidRequest: function(requestError) {
+
+                                if (!(requestError instanceof RequestError)) {
+                                    throw new Error();
+                                }
+                                if (requestError.input !== _input) {
+                                    throw new Error();
+                                }
+                                if (!requestError.validationErrors) {
+                                    throw new Error();
+                                }
+
+                                count++;
+                            },
+                            onError: function(err) {
+
+                                if (!(err instanceof RequestError)) {
+                                    throw new Error();
+                                }
+                                if (err.input !== _input) {
+                                    throw new Error();
+                                }
+                                if (!err.validationErrors) {
+                                    throw new Error();
+                                }
+
+                                count++;
+                            },
+                            onRequestEnd: function(err, payload, status, headers) {
+                                if (this !== _serviceCall) {
+                                    throw new Error();
+                                }
+                                if (!err) {
+                                    throw new Error();
+                                }
+                                if (!(err instanceof RequestError)) {
+                                    throw new Error();
+                                }
+                                count++;
+                            }
+                        });
+
+                        service
+                            .createServiceCall('testService', '/users/{userId}/edit', 'put')
+                            .querySchema({
+                                expanded: {
+                                    type: 'boolean'
+                                }
+                            })
+                            .register();
+
+                        service.serviceCalls.testService.execute({
+                            path: {
+                                userId: 'one'
+                            },
+                        }, (err, payload, status, headers, serviceCall) => {
+
+                            if (!err) {
+                                throw new Error();
+                            }
+                            if (!(err instanceof RequestError)) {
+                                throw new Error();
+                            }
+                            if (count !== 5) {
+                                throw new Error();
+                            }
+                        });
+
+                    });
+
+                    it('invalid path inputs', function() {
+
+                        let _serviceCall;
+                        let _input;
+                        let count = 0;
+
+                        const Service = class extends HttpService {
+                            static makeRequest(input, serviceCall, callback) {
+
+                                callback(null, { message: 'error' }, 200, { baz: 'qux' });
+                            }
+                        };
+
+                        const service = new Service('test', 'http://localhost', {
+                            onCallRegistration: function(serviceCall) {
+                                _serviceCall = serviceCall;
+                                count++;
+                            },
+                            onRequestStart: function(input) {
+                                _input = input;
+                                if (this !== _serviceCall) {
+                                    throw new Error();
+                                }
+                                count++;
+                            },
+                            onInvalidRequest: function(requestError) {
+
+                                if (!(requestError instanceof RequestError)) {
+                                    throw new Error();
+                                }
+                                if (requestError.input !== _input) {
+                                    throw new Error();
+                                }
+                                if (!requestError.validationErrors) {
+                                    throw new Error();
+                                }
+
+                                count++;
+                            },
+                            onError: function(err) {
+
+                                if (!(err instanceof RequestError)) {
+                                    throw new Error();
+                                }
+                                if (err.input !== _input) {
+                                    throw new Error();
+                                }
+                                if (!err.validationErrors) {
+                                    throw new Error();
+                                }
+
+                                count++;
+                            },
+                            onRequestEnd: function(err, payload, status, headers) {
+                                if (this !== _serviceCall) {
+                                    throw new Error();
+                                }
+                                if (!err) {
+                                    throw new Error();
+                                }
+                                if (!(err instanceof RequestError)) {
+                                    throw new Error();
+                                }
+                                count++;
+                            }
+                        });
+
+                        service
+                            .createServiceCall('testService', '/users/{userId}/edit', 'put')
+                            .pathSchema({
+                                userId: {
+                                    type: 'string'
+                                }
+                            })
+                            .register();
+
+                        service.serviceCalls.testService.execute({}, (err, payload, status, headers, serviceCall) => {
+
+                            if (!err) {
+                                throw new Error();
+                            }
+                            if (!(err instanceof RequestError)) {
+                                throw new Error();
+                            }
+                            if (count !== 5) {
+                                throw new Error();
+                            }
+                        });
+
+                    });
+
+                    it('invalid body inputs', function() {
+
+                        let _serviceCall;
+                        let _input;
+                        let count = 0;
+
+                        const Service = class extends HttpService {
+                            static makeRequest(input, serviceCall, callback) {
+
+                                callback(null, { message: 'error' }, 200, { baz: 'qux' });
+                            }
+                        };
+
+                        const service = new Service('test', 'http://localhost', {
+                            onCallRegistration: function(serviceCall) {
+                                _serviceCall = serviceCall;
+                                count++;
+                            },
+                            onRequestStart: function(input) {
+                                _input = input;
+                                if (this !== _serviceCall) {
+                                    throw new Error();
+                                }
+                                count++;
+                            },
+                            onInvalidRequest: function(requestError) {
+
+                                if (!(requestError instanceof RequestError)) {
+                                    throw new Error();
+                                }
+                                if (requestError.input !== _input) {
+                                    throw new Error();
+                                }
+                                if (!requestError.validationErrors) {
+                                    throw new Error();
+                                }
+
+                                count++;
+                            },
+                            onError: function(err) {
+
+                                if (!(err instanceof RequestError)) {
+                                    throw new Error();
+                                }
+                                if (err.input !== _input) {
+                                    throw new Error();
+                                }
+                                if (!err.validationErrors) {
+                                    throw new Error();
+                                }
+
+                                count++;
+                            },
+                            onRequestEnd: function(err, payload, status, headers) {
+                                if (this !== _serviceCall) {
+                                    throw new Error();
+                                }
+                                if (!err) {
+                                    throw new Error();
+                                }
+                                if (!(err instanceof RequestError)) {
+                                    throw new Error();
+                                }
+                                count++;
+                            }
+                        });
+
+                        service
+                            .createServiceCall('testService', '/users/{userId}/edit', 'put')
+                            .bodySchema({
+                                baz: {
+                                    type: 'string'
+                                }
+                            })
+                            .register();
+
+                        service.serviceCalls.testService.execute({
+                            path: {
+                                userId: 'one'
+                            },
+                            body: {
+                                baz: true
+                            }
+                        }, (err, payload, status, headers, serviceCall) => {
+
+                            if (!err) {
+                                throw new Error();
+                            }
+                            if (!(err instanceof RequestError)) {
+                                throw new Error();
+                            }
+                            if (count !== 5) {
+                                throw new Error();
+                            }
+                        });
+
+                    });
+
+                    it('on error call', function() {
+
+                        let _serviceCall;
+                        let _input;
+                        let count = 0;
+                        const _err = new Error();
+
+                        const Service = class extends HttpService {
+                            static makeRequest(input, serviceCall, callback) {
+
+                                callback(_err);
+                            }
+                        };
+
+                        const service = new Service('test', 'http://localhost', {
+                            onCallRegistration: function(serviceCall) {
+                                _serviceCall = serviceCall;
+                                count++;
+                            },
+                            onRequestStart: function(input) {
+                                _input = input;
+                                if (this !== _serviceCall) {
+                                    throw new Error();
+                                }
+                                count++;
+                            },
+                            onInvalidResponse: function(responseError) {
+
+                                count++;
+                            },
+                            onError: function(err) {
+                                if (err !== _err) {
+                                    throw new Error();
+                                }
+                                count++;
+                            },
+                            onRequestEnd: function(err, payload, status, headers) {
+                                if (this !== _serviceCall) {
+                                    throw new Error();
+                                }
+                                if (!err) {
+                                    throw new Error();
+                                }
+                                if (err !== _err) {
+                                    throw new Error();
+                                }
+                                count++;
+                            }
+                        });
+
+                        service
+                            .createServiceCall('testService', '/users/{userId}/edit', 'put')
+                            .register();
+
+                        service.serviceCalls.testService.execute({
+                            headers: {
+                                Authorization: 'Bearer x'
+                            },
+                            path: {
+                                userId: 'one'
+                            },
+                            query: {
+                                expanded: true
+                            },
+                            body: {
+                                firstName: 'Shaun'
+                            }
+                        }, (err, payload, status, headers, serviceCall) => {
+
+                            if (!err) {
+                                throw new Error();
+                            }
+                            if (err !== _err) {
+                                throw new Error();
+                            }
+                            if (count !== 4) {
+                                throw new Error();
+                            }
+                        });
+
+                    });
                 });
 
             });

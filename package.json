@@ -27,6 +27,6 @@
   "homepage": "https://github.com/shaunpersad/http-calls#readme",
   "dependencies": {
     "ajv": "^5.3.0",
-    "express-laravel-router": "^1.2.3"
+    "express-laravel-router": "^1.4.1"
   }
 }
