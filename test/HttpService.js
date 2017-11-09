@@ -1,6 +1,7 @@
 "use strict";
 const HttpService = require('../lib/HttpService');
 const HttpServiceCall = require('../lib/HttpServiceCall');
+const ResponseError = require('../lib/ResponseError');
 const arraysAreEqual = require('./arraysAreEqual');
 
 describe('HttpService', function() {
@@ -65,10 +66,10 @@ describe('HttpService', function() {
                     events: {
                         onRequestStart: () => {},
                         onRequestEnd: () => {},
-                        onRequestError: () => {},
-                        onResponseError: () => {},
+                        onInvalidRequest: () => {},
+                        onInvalidResponse: () => {},
                         onError: () => {},
-                        onCallDefinition: () => {}
+                        onCallRegistration: () => {}
                     },
                     headers: {
                         foo: 'bar',
@@ -148,10 +149,10 @@ describe('HttpService', function() {
                         events: {
                             onRequestStart: () => {},
                             onRequestEnd: () => {},
-                            onRequestError: () => {},
-                            onResponseError: () => {},
+                            onInvalidRequest: () => {},
+                            onInvalidResponse: () => {},
                             onError: () => {},
-                            onCallDefinition: () => {}
+                            onCallRegistration: () => {}
                         },
                         headers: {
                             fred: 'plugh',
@@ -311,10 +312,10 @@ describe('HttpService', function() {
                     events: {
                         onRequestStart: () => {},
                         onRequestEnd: () => {},
-                        onRequestError: () => {},
-                        onResponseError: () => {},
+                        onInvalidRequest: () => {},
+                        onInvalidResponse: () => {},
                         onError: () => {},
-                        onCallDefinition: () => {}
+                        onCallRegistration: () => {}
                     },
                     headers: {
                         foo: 'bar',
@@ -365,10 +366,10 @@ describe('HttpService', function() {
                                 clicked = true;
                             },
                             onRequestEnd: () => {},
-                            onRequestError: () => {},
-                            onResponseError: () => {},
+                            onInvalidRequest: () => {},
+                            onInvalidResponse: () => {},
                             onError: () => {},
-                            onCallDefinition: () => {}
+                            onCallRegistration: () => {}
                         },
                         headers: {
                             fred: 'plugh',
@@ -391,7 +392,7 @@ describe('HttpService', function() {
                         if (serviceCall.endpointUrl !== 'http://localhost/api/v1/users') {
                             throw new Error();
                         }
-                        if (!arraysAreEqual(Object.keys(serviceCall.headersParams), ['foo', 'baz', 'fred', 'thud'])) {
+                        if (!arraysAreEqual(Object.keys(serviceCall.groupHeadersInputs), ['foo', 'baz', 'fred', 'thud'])) {
                             throw new Error();
                         }
                         if (!arraysAreEqual(Object.keys(serviceCall.inputSchema.properties.headers.properties), ['foo', 'baz', 'fred', 'thud'])) {
@@ -407,6 +408,680 @@ describe('HttpService', function() {
 
                     });
                 });
+            });
+
+            describe('serviceCall', function() {
+
+                describe('serviceCall.clone()', function() {
+
+                    it('should create a new instance that inherits all properties from the instance that created it', function() {
+
+                        const service = new HttpService('test-service', 'http://localhost');
+
+                        service.group({
+                            headers: {
+                                foo: 'bar'
+                            }
+                        }, (service) => {
+
+                            const serviceCall = service.createServiceCall('test-call', '/users');
+                            const clone = serviceCall.clone();
+
+                            if (serviceCall === clone) {
+                                throw new Error();
+                            }
+                            if (serviceCall.service !== clone.service) {
+                                throw new Error();
+                            }
+                            if (serviceCall.serviceCallName !== clone.serviceCallName) {
+                                throw new Error();
+                            }
+                            if (serviceCall.endpointPath !== clone.endpointPath) {
+                                throw new Error();
+                            }
+                            if (serviceCall.endpointUrl !== clone.endpointUrl) {
+                                throw new Error();
+                            }
+                            if (serviceCall.method !== clone.method) {
+                                throw new Error();
+                            }
+
+                        });
+                    });
+                });
+
+                describe('serviceCall.register()', function() {
+
+                    it('should register itself in the serviceCalls of the service, and fire the onCallRegistration event', function() {
+
+                        let _serviceCall;
+
+                        const service = new HttpService('test', 'http://localhost', {
+                            onCallRegistration: (serviceCall) => {
+
+                                _serviceCall = serviceCall;
+                            }
+                        });
+                        const serviceCall = service.createServiceCall('call').register();
+                        if (serviceCall !== service.serviceCalls['call']) {
+                            throw new Error();
+                        }
+                        if (_serviceCall !== service.serviceCalls['call']) {
+                            throw new Error();
+                        }
+                    });
+                });
+
+                describe('serviceCall.execute(input, callback)', function() {
+
+                    it('should call the HttpService.makeRequest method, along with all relevant events', function() {
+
+                        let _serviceCall;
+                        let _input;
+                        let count = 0;
+
+                        const Service = class extends HttpService {
+                            static makeRequest(input, serviceCall, callback) {
+
+                                if (input !== _input || !arraysAreEqual(Object.keys(input), Object.keys(_input))) {
+                                    throw new Error();
+                                }
+                                if (
+                                    input.url !== 'http://localhost/users/one/edit' ||
+                                    input.method !== 'put' ||
+                                    input.headers.Authorization !== 'Bearer x' ||
+                                    input.path.userId !== 'one' ||
+                                    input.query.expanded !== true ||
+                                    input.body.firstName !== 'Shaun'
+                                ) {
+                                    throw new Error();
+                                }
+                                if (_serviceCall !== serviceCall) {
+                                    throw new Error();
+                                }
+
+                                callback(null, { foo: 'bar' }, 200, { baz: 'qux' });
+                            }
+                        };
+
+                        const service = new Service('test', 'http://localhost', {
+                            onCallRegistration: function(serviceCall) {
+                                _serviceCall = serviceCall;
+                                count++;
+                            },
+                            onRequestStart: function(input) {
+                                _input = input;
+                                if (this !== _serviceCall) {
+                                    throw new Error();
+                                }
+                                count++;
+                            },
+                            onRequestEnd: function(err, payload, status, headers) {
+                                if (this !== _serviceCall) {
+                                    throw new Error();
+                                }
+                                count++;
+                            }
+                        });
+
+                        service
+                            .createServiceCall('testService', '/users/{userId}/edit', 'put')
+                            .headersSchema({
+                                Authorization: {
+                                    type: 'string'
+                                }
+                            }, ['Authorization'])
+                            .pathSchema({
+                                userId: {
+                                    type: 'string'
+                                }
+                            })
+                            .querySchema({
+                                expanded: {
+                                    type: 'boolean'
+                                }
+                            })
+                            .bodySchema({
+                                firstName: {
+                                    type: 'string'
+                                }
+                            })
+                            .success({
+                                type: 'object',
+                                properties: {
+                                    foo: {
+                                        type: 'string'
+                                    }
+                                },
+                                required: ['foo']
+                            })
+                            .register();
+
+                        service.serviceCalls.testService.execute({
+                            headers: {
+                                Authorization: 'Bearer x'
+                            },
+                            path: {
+                                userId: 'one'
+                            },
+                            query: {
+                                expanded: true
+                            },
+                            body: {
+                                firstName: 'Shaun'
+                            }
+                        }, (err, response, status, headers, serviceCall) => {
+
+                            if (err) {
+                                throw new Error();
+                            }
+                            if (response.foo !== 'bar') {
+                                throw new Error();
+                            }
+                            if (status !== 200) {
+                                throw new Error();
+                            }
+                            if (!arraysAreEqual(Object.keys(headers), ['baz'])) {
+                                throw new Error();
+                            }
+                            if (serviceCall !== _serviceCall) {
+                                throw new Error();
+                            }
+                            if (count !== 3) {
+                                throw new Error();
+                            }
+                        });
+                    });
+
+                    it('should allow successful calls without registering a response', function() {
+
+                        let _serviceCall;
+                        let _input;
+                        let count = 0;
+
+                        const Service = class extends HttpService {
+                            static makeRequest(input, serviceCall, callback) {
+
+                                if (input !== _input || !arraysAreEqual(Object.keys(input), Object.keys(_input))) {
+                                    throw new Error();
+                                }
+                                if (
+                                    input.url !== 'http://localhost/users/one/edit' ||
+                                    input.method !== 'put' ||
+                                    input.headers.Authorization !== 'Bearer x' ||
+                                    input.path.userId !== 'one' ||
+                                    input.query.expanded !== true ||
+                                    input.body.firstName !== 'Shaun'
+                                ) {
+                                    throw new Error();
+                                }
+                                if (_serviceCall !== serviceCall) {
+                                    throw new Error();
+                                }
+
+                                callback(null, { foo: 'bar' }, 200, { baz: 'qux' });
+                            }
+                        };
+
+                        const service = new Service('test', 'http://localhost', {
+                            onCallRegistration: function(serviceCall) {
+                                _serviceCall = serviceCall;
+                                count++;
+                            },
+                            onRequestStart: function(input) {
+                                _input = input;
+                                if (this !== _serviceCall) {
+                                    throw new Error();
+                                }
+                                count++;
+                            },
+                            onRequestEnd: function(err, payload, status, headers) {
+                                if (this !== _serviceCall) {
+                                    throw new Error();
+                                }
+                                count++;
+                            }
+                        });
+
+                        service
+                            .createServiceCall('testService', '/users/{userId}/edit', 'put')
+                            .headersSchema({
+                                Authorization: {
+                                    type: 'string'
+                                }
+                            }, ['Authorization'])
+                            .pathSchema({
+                                userId: {
+                                    type: 'string'
+                                }
+                            })
+                            .querySchema({
+                                expanded: {
+                                    type: 'boolean'
+                                }
+                            })
+                            .bodySchema({
+                                firstName: {
+                                    type: 'string'
+                                }
+                            })
+                            .register();
+
+                        service.serviceCalls.testService.execute({
+                            headers: {
+                                Authorization: 'Bearer x'
+                            },
+                            path: {
+                                userId: 'one'
+                            },
+                            query: {
+                                expanded: true
+                            },
+                            body: {
+                                firstName: 'Shaun'
+                            }
+                        }, (err, response, status, headers, serviceCall) => {
+
+                            if (err) {
+                                throw new Error();
+                            }
+                            if (response.foo !== 'bar') {
+                                throw new Error();
+                            }
+                            if (status !== 200) {
+                                throw new Error();
+                            }
+                            if (!arraysAreEqual(Object.keys(headers), ['baz'])) {
+                                throw new Error();
+                            }
+                            if (serviceCall !== _serviceCall) {
+                                throw new Error();
+                            }
+                        });
+                    });
+
+                    it('should allow successful calls without registering anything', function() {
+
+                        let _serviceCall;
+                        let _input;
+                        let count = 0;
+
+                        const Service = class extends HttpService {
+                            static makeRequest(input, serviceCall, callback) {
+
+                                if (input !== _input || !arraysAreEqual(Object.keys(input), Object.keys(_input))) {
+                                    throw new Error();
+                                }
+                                if (
+                                    input.url !== 'http://localhost/users/one/edit' ||
+                                    input.method !== 'put' ||
+                                    input.headers.Authorization !== 'Bearer x' ||
+                                    input.path.userId !== 'one' ||
+                                    input.query.expanded !== true ||
+                                    input.body.firstName !== 'Shaun'
+                                ) {
+                                    throw new Error();
+                                }
+                                if (_serviceCall !== serviceCall) {
+                                    throw new Error();
+                                }
+
+                                callback(null, { foo: 'bar' }, 200, { baz: 'qux' });
+                            }
+                        };
+
+                        const service = new Service('test', 'http://localhost', {
+                            onCallRegistration: function(serviceCall) {
+                                _serviceCall = serviceCall;
+                                count++;
+                            },
+                            onRequestStart: function(input) {
+                                _input = input;
+                                if (this !== _serviceCall) {
+                                    throw new Error();
+                                }
+                                count++;
+                            },
+                            onRequestEnd: function(err, payload, status, headers) {
+                                if (this !== _serviceCall) {
+                                    throw new Error();
+                                }
+                                count++;
+                            }
+                        });
+
+                        service
+                            .createServiceCall('testService', '/users/{userId}/edit', 'put')
+                            .register();
+
+                        service.serviceCalls.testService.execute({
+                            headers: {
+                                Authorization: 'Bearer x'
+                            },
+                            path: {
+                                userId: 'one'
+                            },
+                            query: {
+                                expanded: true
+                            },
+                            body: {
+                                firstName: 'Shaun'
+                            }
+                        }, (err, response, status, headers, serviceCall) => {
+
+                            if (err) {
+                                throw new Error();
+                            }
+                            if (response.foo !== 'bar') {
+                                throw new Error();
+                            }
+                            if (status !== 200) {
+                                throw new Error();
+                            }
+                            if (!arraysAreEqual(Object.keys(headers), ['baz'])) {
+                                throw new Error();
+                            }
+                            if (serviceCall !== _serviceCall) {
+                                throw new Error();
+                            }
+                        });
+
+                    });
+
+                    it('should fire the onInvalidResponse and onRequestEnd and pass an instance of ResponseError to the callback if a successful call does not match the expected format', function() {
+
+                        let _serviceCall;
+                        let _input;
+                        let count = 0;
+
+                        const Service = class extends HttpService {
+                            static makeRequest(input, serviceCall, callback) {
+
+                                callback(null, { message: 'error' }, 200, { baz: 'qux' });
+                            }
+                        };
+
+                        const service = new Service('test', 'http://localhost', {
+                            onCallRegistration: function(serviceCall) {
+                                _serviceCall = serviceCall;
+                                count++;
+                            },
+                            onRequestStart: function(input) {
+                                _input = input;
+                                if (this !== _serviceCall) {
+                                    throw new Error();
+                                }
+                                count++;
+                            },
+                            onInvalidResponse: function(responseError) {
+
+                                if (!(responseError instanceof ResponseError)) {
+                                    throw new Error();
+                                }
+                                if (responseError.input !== _input) {
+                                    throw new Error();
+                                }
+                                if (responseError.payload.message !== 'error') {
+                                    throw new Error();
+                                }
+                                if (responseError.status !== 200) {
+                                    throw new Error();
+                                }
+                                if (responseError.headers.baz !== 'qux') {
+                                    throw new Error();
+                                }
+                                if (!responseError.validationErrors) {
+                                    throw new Error();
+                                }
+
+                                count++;
+                            },
+                            onRequestEnd: function(err, payload, status, headers) {
+                                if (this !== _serviceCall) {
+                                    throw new Error();
+                                }
+                                count++;
+                            }
+                        });
+
+                        service
+                            .createServiceCall('testService', '/users/{userId}/edit', 'put')
+                            .success({
+                                type: 'object',
+                                properties: {
+                                    foo: {
+                                        type: 'string'
+                                    }
+                                },
+                                required: ['foo']
+                            }, 200)
+                            .register();
+
+                        service.serviceCalls.testService.execute({
+                            headers: {
+                                Authorization: 'Bearer x'
+                            },
+                            path: {
+                                userId: 'one'
+                            },
+                            query: {
+                                expanded: true
+                            },
+                            body: {
+                                firstName: 'Shaun'
+                            }
+                        }, (err, payload, status, headers, serviceCall) => {
+
+                            if (!err) {
+                                throw new Error();
+                            }
+                            if (!(err instanceof ResponseError)) {
+                                throw new Error();
+                            }
+                            if (payload.message !== 'error') {
+                                throw new Error();
+                            }
+                            if (status !== 200) {
+                                throw new Error();
+                            }
+                            if (headers.baz !== 'qux') {
+                                throw new Error();
+                            }
+
+                            if (count !== 4) {
+                                throw new Error();
+                            }
+                        });
+
+                    });
+
+                    it('should allow unsuccessful calls to pass through without registering a response', function() {
+
+                        let _serviceCall;
+                        let _input;
+                        let count = 0;
+
+                        const Service = class extends HttpService {
+                            static makeRequest(input, serviceCall, callback) {
+
+                                callback(null, { message: 'error' }, 404, { baz: 'qux' });
+                            }
+                        };
+
+                        const service = new Service('test', 'http://localhost', {
+                            onCallRegistration: function(serviceCall) {
+                                _serviceCall = serviceCall;
+                                count++;
+                            },
+                            onRequestStart: function(input) {
+                                _input = input;
+                                if (this !== _serviceCall) {
+                                    throw new Error();
+                                }
+                                count++;
+                            },
+                            onRequestEnd: function(err, payload, status, headers) {
+                                if (this !== _serviceCall) {
+                                    throw new Error();
+                                }
+                                count++;
+                            }
+                        });
+
+                        service
+                            .createServiceCall('testService', '/users/{userId}/edit', 'put')
+                            .register();
+
+                        service.serviceCalls.testService.execute({
+                            headers: {
+                                Authorization: 'Bearer x'
+                            },
+                            path: {
+                                userId: 'one'
+                            },
+                            query: {
+                                expanded: true
+                            },
+                            body: {
+                                firstName: 'Shaun'
+                            }
+                        }, (err, payload, status, headers, serviceCall) => {
+
+                            if (err) {
+                                throw new Error();
+                            }
+                            if (payload.message !== 'error') {
+                                throw new Error();
+                            }
+                            if (status !== 404) {
+                                throw new Error();
+                            }
+                            if (headers.baz !== 'qux') {
+                                throw new Error();
+                            }
+
+                            if (count !== 3) {
+                                throw new Error();
+                            }
+                        });
+
+                    });
+
+                    it('should not pass through a response error to the callback if an unsuccessful call does not match the expected format, but it should still trigger the onInvalidResponse event', function() {
+
+                        let _serviceCall;
+                        let _input;
+                        let count = 0;
+
+                        const Service = class extends HttpService {
+                            static makeRequest(input, serviceCall, callback) {
+
+                                callback(null, { foo: 'error' }, 404, { baz: 'qux' });
+                            }
+                        };
+
+                        const service = new Service('test', 'http://localhost', {
+                            onCallRegistration: function(serviceCall) {
+                                _serviceCall = serviceCall;
+                                count++;
+                            },
+                            onRequestStart: function(input) {
+                                _input = input;
+                                if (this !== _serviceCall) {
+                                    throw new Error();
+                                }
+                                count++;
+                            },
+                            onInvalidResponse: function(responseError) {
+
+                                if (!(responseError instanceof ResponseError)) {
+                                    throw new Error();
+                                }
+                                if (responseError.input !== _input) {
+                                    throw new Error();
+                                }
+                                if (responseError.payload.foo !== 'error') {
+                                    throw new Error();
+                                }
+                                if (responseError.status !== 404) {
+                                    throw new Error();
+                                }
+                                if (responseError.headers.baz !== 'qux') {
+                                    throw new Error();
+                                }
+                                if (!responseError.validationErrors) {
+                                    throw new Error();
+                                }
+
+                                count++;
+
+                            },
+                            onRequestEnd: function(err, payload, status, headers) {
+                                if (this !== _serviceCall) {
+                                    throw new Error();
+                                }
+                                count++;
+                            }
+                        });
+
+                        service
+                            .createServiceCall('testService', '/users/{userId}/edit', 'put')
+                            .error({
+                                type: 'object',
+                                properties: {
+                                    message: {
+                                        type: 'string'
+                                    }
+                                },
+                                required: ['message']
+                            }, 404)
+                            .register();
+
+                        service.serviceCalls.testService.execute({
+                            headers: {
+                                Authorization: 'Bearer x'
+                            },
+                            path: {
+                                userId: 'one'
+                            },
+                            query: {
+                                expanded: true
+                            },
+                            body: {
+                                firstName: 'Shaun'
+                            }
+                        }, (err, payload, status, headers, serviceCall) => {
+
+                            if (err) {
+                                throw new Error();
+                            }
+                            if (payload.foo !== 'error') {
+                                throw new Error();
+                            }
+                            if (status !== 404) {
+                                throw new Error();
+                            }
+                            if (headers.baz !== 'qux') {
+                                throw new Error();
+                            }
+
+                            if (count !== 4) {
+                                throw new Error();
+                            }
+                        });
+
+                    });
+
+                    it('invalid headers inputs');
+
+                    it('invalid query inputs');
+
+                    it('invalid path inputs');
+
+                    it('invalid body inputs');
+
+                });
+
             });
         });
 
@@ -458,28 +1133,28 @@ describe('HttpService', function() {
             const events = {
                 onRequestStart: incClicks,
                 onRequestEnd: incClicks,
-                onRequestError: incClicks,
-                onResponseError: incClicks,
+                onInvalidRequest: incClicks,
+                onInvalidResponse: incClicks,
                 onError: incClicks,
-                onCallDefinition: incClicks
+                onCallRegistration: incClicks
             };
             const service = new HttpService('test-service', 'http://localhost', events);
 
             service.events.onRequestStart();
             service.events.onRequestEnd();
-            service.events.onRequestError();
-            service.events.onResponseError();
+            service.events.onInvalidRequest();
+            service.events.onInvalidResponse();
             service.events.onError();
-            service.events.onCallDefinition();
+            service.events.onCallRegistration();
 
             service.group({ namespace: 'hi' }, (service) => {
 
                 service.events.onRequestStart();
                 service.events.onRequestEnd();
-                service.events.onRequestError();
-                service.events.onResponseError();
+                service.events.onInvalidRequest();
+                service.events.onInvalidResponse();
                 service.events.onError();
-                service.events.onCallDefinition();
+                service.events.onCallRegistration();
 
                 if (numClicks !== 12) {
                     throw new Error();
