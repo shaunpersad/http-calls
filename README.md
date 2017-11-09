@@ -9,7 +9,7 @@ It's purpose is to expressively describe, validate, and hook into the various AP
 Features and use cases:
 - Easily create new API service calls with less repeated code (like copy/pasting the same `request` module calls everywhere)
 - Event hooks, which can be used for centralized logging for every service call made
-- Automatic validation of both input params as well as responses
+- Automatic validation of input params as well as responses
 - Easily swap out the underlying network library, e.g. swapping out `fetch` for `axios`
 
 ## Installation
