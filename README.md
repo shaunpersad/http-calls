@@ -45,17 +45,27 @@ class RequestService extends HttpService {
 
 const github = new RequestService('github', 'https://api.github.com');
 
-github.group({ prefix: '/search', queryParams: { q: { type: 'string' } } }, (github) => {
+github.group({ 
+    prefix: '/search', 
+    queryParams: { 
+        q: { type: 'string' } 
+    } 
+}, (github) => {
    
     github.createServiceCall('searchUsers', '/users', 'get');
     
     github.createServiceCall('searchRepos', '/repositories', 'get');
 });
 
-github.serviceCalls.searchUsers.execute({ query: { q: 'shaunpersad' } }, (err, payload) => {
+github.serviceCalls.searchUsers.execute({ 
+    query: { q: 'shaunpersad' } 
+}, (err, payload) => {
     // handle response payload
 });
-github.serviceCalls.searchRepos.execute({ query: { q: 'http-calls' } }, (err, payload) => {
+
+github.serviceCalls.searchRepos.execute({ 
+    query: { q: 'http-calls' } 
+}, (err, payload) => {
     // handle response payload
 });
 ```
