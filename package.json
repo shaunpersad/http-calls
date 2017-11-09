@@ -1,6 +1,6 @@
 {
   "name": "http-calls",
-  "version": "0.0.1",
+  "version": "1.0.0",
   "description": "A utility for describing and executing http service calls",
   "main": "index.js",
   "directories": {
