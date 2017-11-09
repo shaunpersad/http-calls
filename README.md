@@ -77,3 +77,9 @@ We then call `service.serviceCalls[serviceCallName].execute` to send the followi
 - `GET https://api.github.com/search/users?q=shaunpersad`
 - `GET https://api.github.com/search/repositories?q=http-calls`
 
+
+## Usage
+// TODO
+
+## Full API
+// TODO
